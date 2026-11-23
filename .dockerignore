@@ -5,6 +5,6 @@
 **/coverage
 **/playwright-report
 **/test-results
-infra
+infra/ansible
+infra/terraform
 README.md
-
