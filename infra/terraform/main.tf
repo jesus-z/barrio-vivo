@@ -1,139 +1,177 @@
-data "aws_availability_zones" "available" {
-  state = "available"
+data "oci_identity_availability_domains" "available" {
+  compartment_id = var.compartment_ocid
 }
-data "aws_ami" "ubuntu_2404" {
-  most_recent = true
-  owners      = ["099720109477"]
-  filter {
-    name   = "name"
-    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
-  }
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
+
+data "oci_core_images" "ubuntu_2404" {
+  compartment_id           = var.compartment_ocid
+  operating_system         = "Canonical Ubuntu"
+  operating_system_version = "24.04"
+  shape                    = var.instance_shape
+  sort_by                  = "TIMECREATED"
+  sort_order               = "DESC"
+}
+
+resource "oci_core_vcn" "main" {
+  compartment_id = var.compartment_ocid
+  cidr_blocks    = ["10.42.0.0/16"]
+  display_name   = "${var.project_name}-vcn"
+  dns_label      = "barriovivo"
+  freeform_tags  = { Project = var.project_name }
+}
+
+resource "oci_core_internet_gateway" "main" {
+  compartment_id = var.compartment_ocid
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "${var.project_name}-igw"
+  enabled        = true
+  freeform_tags  = { Project = var.project_name }
+}
+
+resource "oci_core_route_table" "public" {
+  compartment_id = var.compartment_ocid
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "${var.project_name}-public-routes"
+
+  route_rules {
+    destination       = "0.0.0.0/0"
+    destination_type  = "CIDR_BLOCK"
+    network_entity_id = oci_core_internet_gateway.main.id
   }
 }
 
-resource "aws_vpc" "main" {
-  cidr_block           = "10.42.0.0/16"
-  enable_dns_support = true
-  enable_dns_hostnames = true
-  tags = { Name = "${var.project_name}-vpc" }
-}
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
-  tags   = { Name = "${var.project_name}-igw" }
-}
-resource "aws_subnet" "public" {
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.42.1.0/24"
-  availability_zone       = data.aws_availability_zones.available.names[0]
-  map_public_ip_on_launch = true
-  tags                    = { Name = "${var.project_name}-public", Tier = "public" }
-}
-resource "aws_subnet" "private" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.42.2.0/24"
-  availability_zone = data.aws_availability_zones.available.names[1]
-  tags              = { Name = "${var.project_name}-private", Tier = "private" }
-}
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
-  }
-  tags = { Name = "${var.project_name}-public-routes" }
-}
-resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
-  route_table_id = aws_route_table.public.id
-}
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.main.id
-  tags   = { Name = "${var.project_name}-private-routes" }
-}
-resource "aws_route_table_association" "private" {
-  subnet_id      = aws_subnet.private.id
-  route_table_id = aws_route_table.private.id
+resource "oci_core_route_table" "private" {
+  compartment_id = var.compartment_ocid
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "${var.project_name}-private-routes"
 }
 
-resource "aws_security_group" "vm" {
-  name = "${var.project_name}-vm"
-  description = "Web pública; administración SSH/VNC restringida al CIDR del responsable"
-  vpc_id = aws_vpc.main.id
-  ingress {
+resource "oci_core_security_list" "public" {
+  compartment_id = var.compartment_ocid
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "${var.project_name}-public-security"
+
+  ingress_security_rules {
+    protocol    = "6"
+    source      = "0.0.0.0/0"
     description = "HTTP"
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    tcp_options {
+      min = 80
+      max = 80
+    }
   }
-  ingress {
+  ingress_security_rules {
+    protocol    = "6"
+    source      = "0.0.0.0/0"
     description = "HTTPS"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    tcp_options {
+      min = 443
+      max = 443
+    }
   }
-  ingress {
+  ingress_security_rules {
+    protocol    = "6"
+    source      = var.admin_cidr
     description = "SSH administrativo"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
+    tcp_options {
+      min = 22
+      max = 22
+    }
   }
-  ingress {
+  ingress_security_rules {
+    protocol    = "6"
+    source      = var.admin_cidr
     description = "VNC administrativo"
-    from_port   = 5901
-    to_port     = 5901
-    protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
+    tcp_options {
+      min = 5901
+      max = 5901
+    }
   }
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+  egress_security_rules {
+    protocol    = "all"
+    destination = "0.0.0.0/0"
   }
-  tags = { Name = "${var.project_name}-sg" }
 }
-resource "aws_key_pair" "admin" {
-  key_name   = "${var.project_name}-admin"
-  public_key = var.ssh_public_key
-  tags       = { Project = var.project_name }
+
+resource "oci_core_security_list" "private" {
+  compartment_id = var.compartment_ocid
+  vcn_id         = oci_core_vcn.main.id
+  display_name   = "${var.project_name}-private-security"
+
+  ingress_security_rules {
+    protocol    = "all"
+    source      = "10.42.0.0/16"
+    description = "Tráfico interno de la VCN"
+  }
+  egress_security_rules {
+    protocol    = "all"
+    destination = "10.42.0.0/16"
+  }
 }
-resource "aws_instance" "web" {
-  ami = data.aws_ami.ubuntu_2404.id
-  instance_type = var.instance_type
-  subnet_id = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.vm.id]
-  key_name = aws_key_pair.admin.key_name
-  associate_public_ip_address = true
-  root_block_device {
-    volume_size = 24
-    volume_type = "gp3"
-    encrypted   = true
+
+resource "oci_core_subnet" "public" {
+  compartment_id             = var.compartment_ocid
+  vcn_id                     = oci_core_vcn.main.id
+  cidr_block                 = "10.42.1.0/24"
+  display_name               = "${var.project_name}-public"
+  dns_label                  = "public"
+  route_table_id             = oci_core_route_table.public.id
+  security_list_ids          = [oci_core_security_list.public.id]
+  prohibit_public_ip_on_vnic = false
+  freeform_tags              = { Tier = "public", Project = var.project_name }
+}
+
+resource "oci_core_subnet" "private" {
+  compartment_id             = var.compartment_ocid
+  vcn_id                     = oci_core_vcn.main.id
+  cidr_block                 = "10.42.2.0/24"
+  display_name               = "${var.project_name}-private"
+  dns_label                  = "private"
+  route_table_id             = oci_core_route_table.private.id
+  security_list_ids          = [oci_core_security_list.private.id]
+  prohibit_public_ip_on_vnic = true
+  freeform_tags              = { Tier = "private", Project = var.project_name }
+}
+
+resource "oci_core_instance" "web" {
+  availability_domain = data.oci_identity_availability_domains.available.availability_domains[0].name
+  compartment_id      = var.compartment_ocid
+  display_name        = "${var.project_name}-ubuntu-2404"
+  shape               = var.instance_shape
+
+  shape_config {
+    ocpus         = var.instance_ocpus
+    memory_in_gbs = var.instance_memory_gbs
   }
-  metadata_options {
-    http_tokens = "required"
+
+  create_vnic_details {
+    subnet_id        = oci_core_subnet.public.id
+    assign_public_ip = true
+    hostname_label   = "barriovivo"
   }
-  tags = { Name = "${var.project_name}-ubuntu-2404"; Project = var.project_name; OS = "Ubuntu 24.04" }
+
+  source_details {
+    source_type             = "image"
+    source_id               = data.oci_core_images.ubuntu_2404.images[0].id
+    boot_volume_size_in_gbs = var.boot_volume_size_gbs
+  }
+
+  metadata = {
+    ssh_authorized_keys = var.ssh_public_key
+  }
+
+  freeform_tags = { Project = var.project_name, OS = "Ubuntu 24.04" }
 }
 
 resource "cloudflare_record" "site" {
-  count = var.enable_cloudflare ? 1 : 0
+  count   = var.enable_cloudflare ? 1 : 0
   zone_id = var.cloudflare_zone_id
-  name = var.domain_name
-  type = "A"
-  value = aws_instance.web.public_ip
-  ttl = 1
+  name    = var.domain_name
+  type    = "A"
+  value   = oci_core_instance.web.public_ip
+  ttl     = 1
   proxied = true
   comment = "Barrio Vivo MVP"
+
   lifecycle {
     precondition {
       condition     = var.cloudflare_zone_id != "" && var.domain_name != "" && var.cloudflare_api_token != ""

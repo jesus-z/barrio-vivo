@@ -1,9 +1,10 @@
 terraform {
   required_version = ">= 1.7.0"
+
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+    oci = {
+      source  = "oracle/oci"
+      version = ">= 6.0, < 8.0"
     }
     cloudflare = {
       source  = "cloudflare/cloudflare"
@@ -12,9 +13,11 @@ terraform {
   }
 }
 
-provider "aws" {
-  region = var.aws_region
+provider "oci" {
+  config_file_profile = var.oci_config_profile
+  region               = var.region
 }
+
 provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }

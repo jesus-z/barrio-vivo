@@ -1,10 +1,18 @@
-aws_region         = "us-east-1"
+oci_config_profile = "DEFAULT"
+region             = "us-ashburn-1" # Reemplaza por la región de tu tenancy OCI
+compartment_ocid   = "ocid1.compartment.oc1..REEMPLAZAR"
+project_name       = "barrio-vivo"
 admin_cidr         = "203.0.113.10/32" # Reemplaza por tu IP pública actual
 ssh_public_key     = "ssh-ed25519 AAAA... tu-clave-publica"
-instance_type      = "t3.medium"
 
-# Puntos extra (opcional): cambia a true y completa una zona ya administrada por Cloudflare.
-enable_cloudflare   = false
+# Ampere A1 ARM: valores predeterminados dentro del límite Always Free publicado por Oracle.
+instance_shape        = "VM.Standard.A1.Flex"
+instance_ocpus        = 2
+instance_memory_gbs   = 12
+boot_volume_size_gbs  = 50
+
+# Puntos extra opcionales: usa una zona que ya administres en Cloudflare.
+enable_cloudflare    = false
 cloudflare_api_token = ""
 cloudflare_zone_id   = ""
-domain_name          = "barrio.tudominio.com"
+domain_name          = ""

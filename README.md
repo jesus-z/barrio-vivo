@@ -9,11 +9,11 @@ MVP de una comunidad vecinal sostenible: cualquier persona puede compartir una a
 | MVP novedoso con frontend, backend y base de datos | React + Vite, API REST Express, Prisma y PostgreSQL |
 | Push a `dev` ejecuta pruebas automatizadas | `.github/workflows/pipeline.yml`: unitarias, integración, E2E y build |
 | Al menos 6 pruebas por nivel | 6 unitarias, 6 integración contra PostgreSQL, 6 E2E con Playwright |
-| Push a `main` crea y publica Docker Hub | Después de pasar todas las pruebas publica `barrio-vivo-api` y `barrio-vivo-web` con tags `latest` y SHA |
+| Push a `main` crea y publica Docker Hub | Después de pasar todas las pruebas publica imágenes `linux/amd64` y `linux/arm64` de `barrio-vivo-api` y `barrio-vivo-web` con tags `latest` y SHA |
 | Dockerfile y Docker Compose | Imágenes multi-stage en `Dockerfile`; stack PostgreSQL, API, web y Caddy en `docker-compose.yml` |
-| Terraform Ubuntu 24.04, VNC, subredes e IP pública | VPC con subred pública y privada, EC2 Ubuntu 24.04, IP pública, SG y puertos 80/443/22/5901 |
+| Terraform Ubuntu 24.04, VNC, subredes e IP pública | VCN OCI con subred pública y privada, Compute Ubuntu 24.04 Ampere A1 ARM, IP pública y puertos 80/443/22/5901 |
 | Script/Ansible para Docker, Git, firewall e iptables | `infra/ansible/site.yml` instala y configura los servicios; firewall persistente limita SSH/VNC a tu CIDR |
-| Extra de Ansible y Cloudflare | Despliegue con Ansible y registro DNS A proxied opcional con Terraform/Cloudflare |
+| Extra de Ansible y Cloudflare | Despliegue con Ansible y registro DNS A proxied opcional con Terraform/Cloudflare hacia la IP pública OCI |
 
 ## Ejecutar localmente
 
@@ -58,28 +58,29 @@ npm run test:e2e          # 6 flujos del navegador contra frontend y API reales
 1. Sube el código a las ramas `dev` y `main`. Cada push a ambas ramas ejecuta las tres suites, genera el cliente Prisma y compila el frontend. También se verifican PR hacia esas ramas.
 2. En el repositorio de GitHub agrega los secretos `DOCKERHUB_USERNAME` y `DOCKERHUB_TOKEN` (token de acceso de Docker Hub).
 3. Cada push a `main`, después de que pase el job `tests`, publica:
-   - `DOCKERHUB_USERNAME/barrio-vivo-api:latest` y `:GITHUB_SHA`
-   - `DOCKERHUB_USERNAME/barrio-vivo-web:latest` y `:GITHUB_SHA`
+   - `DOCKERHUB_USERNAME/barrio-vivo-api:latest` y `:GITHUB_SHA` para `linux/amd64` y `linux/arm64`
+   - `DOCKERHUB_USERNAME/barrio-vivo-web:latest` y `:GITHUB_SHA` para `linux/amd64` y `linux/arm64`
 4. Para el equipo de dos personas, cada integrante trabaja en una rama de funcionalidad, abre PR hacia `dev`, revisa el trabajo de su compañero y promueve a `main` la versión aceptada. Así el push a `dev` valida continuamente y `main` publica.
 
-## Infraestructura AWS con Terraform
+## Infraestructura Oracle Cloud (OCI) con Terraform
 
-La infraestructura vive en `infra/terraform`. Crea Ubuntu Server 24.04 LTS, VPC, una subred pública y otra privada, Internet Gateway, rutas, grupo de seguridad, clave SSH y EC2 con IP pública. VNC (`5901/tcp`) y SSH (`22/tcp`) quedan limitados a `admin_cidr`; HTTP/HTTPS (`80/443`) son públicos. Metadata IMDSv2 y disco cifrado están habilitados.
+La infraestructura vive en `infra/terraform`. Crea una VCN con subred pública y privada, Internet Gateway, rutas y listas de seguridad; una VM Ubuntu 24.04 con IP pública; y reglas para HTTP/HTTPS (`80/443`) abiertas y SSH/VNC (`22/5901`) limitadas a `admin_cidr`. La VM usa `VM.Standard.A1.Flex` ARM con 2 OCPU, 12 GB RAM y volumen de arranque de 50 GB, dimensionados para los límites publicados de OCI Always Free. Oracle puede no tener capacidad A1 libre temporalmente en tu región de origen.
 
-Necesitas Terraform >=1.7, credenciales de AWS por AWS CLI/variables de entorno y una clave SSH. Nunca guardes claves privadas ni `terraform.tfvars` en Git.
+Necesitas una cuenta OCI, Terraform >=1.7, un API signing key configurado en el perfil local `~/.oci/config`, el OCID del compartment, región, clave SSH pública e IP/CIDR administrativo. Configura las credenciales localmente con `oci setup config` (OCI CLI) o sigue la guía de [API Key Authentication de Oracle](https://docs.oracle.com/en-us/iaas/Content/dev/terraform/configuring.htm). El provider toma del perfil el tenancy OCID, user OCID, fingerprint y ruta de la clave privada. No subas `~/.oci/config`, claves privadas ni `terraform.tfvars` al repositorio.
 
 ```bash
 cd infra/terraform
 cp terraform.tfvars.example terraform.tfvars
-# Edita admin_cidr con TU_IP_PUBLICA/32 y pega únicamente la clave pública SSH.
+# Define region, compartment_ocid, admin_cidr y tu clave PÚBLICA SSH.
 terraform init
+terraform fmt -check
 terraform validate
 terraform plan
 terraform apply
 terraform output website_url
 ```
 
-Guarda `public_ip` para Ansible. Usa `terraform destroy` cuando termines la práctica para retirar EC2 y la red y detener cargos. La instancia `t3.medium` y su volumen pueden generar cargos mientras existan.
+Guarda `public_ip` para Ansible. Antes de aplicar, confirma que shape y volumen siguen marcados Always Free en tu tenancy. Usa `terraform destroy` cuando termines la práctica para retirar la VM, VCN y recursos asociados.
 
 ### Configurar la VM y el escritorio VNC con Ansible
 
@@ -99,7 +100,7 @@ Esto instala Docker, Docker Compose, Git, XFCE, TigerVNC e iptables. El firewall
 
 ### DNS y HTTPS con Cloudflare (puntos extra)
 
-Usa una zona de Cloudflare que ya administres y crea un API token con permiso `Zone / DNS / Edit` solamente para esa zona. En `terraform.tfvars` activa `enable_cloudflare`, define `cloudflare_api_token`, `cloudflare_zone_id` y el FQDN (`domain_name`). Terraform crea el registro A proxied apuntando a la IP pública. Protege el token, evita subir los tfvars y recuerda que Terraform puede conservar valores sensibles en el state.
+Usa una zona de Cloudflare que ya administres y crea un API token con permiso `Zone / DNS / Edit` solamente para esa zona. En `terraform.tfvars` activa `enable_cloudflare`, define `cloudflare_api_token`, `cloudflare_zone_id` y el FQDN (`domain_name`). Terraform crea el registro A proxied apuntando a la IP pública OCI. Protege el token, evita subir los tfvars y recuerda que Terraform puede conservar valores sensibles en el state.
 
 El Caddy del compose obtiene y renueva certificado HTTPS automáticamente cuando el FQDN resuelve a la VM y llegan conexiones por 80/443. Configura Cloudflare SSL/TLS en **Full (strict)** y define `SITE_DOMAIN=app.tudominio.com` en `.env` antes de desplegar. En el escenario sin dominio usa `SITE_DOMAIN=http://IP_PUBLICA` para servir HTTP sin intentar emitir un certificado.
 
@@ -125,6 +126,6 @@ api/                 API Express, reglas de negocio, Prisma y 12 pruebas
 web/                 interfaz React, Vite y 6 pruebas E2E
 .github/workflows/   pipeline dev/main y publicación Docker Hub
 infra/docker/        reverse proxy frontend → API
-infra/terraform/     VPC, subnets, Ubuntu 24.04, VNC/SG y DNS Cloudflare
+infra/terraform/     OCI VCN/subnets, Ubuntu 24.04 ARM, VNC/security lists y DNS Cloudflare
 infra/ansible/       hardening, herramientas, escritorio VNC y despliegue
 ```
