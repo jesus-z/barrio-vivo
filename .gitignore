@@ -1,0 +1,15 @@
+node_modules/
+**/node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+*.log
+infra/terraform/.terraform/
+infra/terraform/*.tfstate*
+infra/terraform/*.tfvars
+infra/terraform/.terraform.lock.hcl
+

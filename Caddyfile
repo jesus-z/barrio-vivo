@@ -1,0 +1,4 @@
+{$SITE_DOMAIN:http://localhost} {
+  encode zstd gzip
+  reverse_proxy web:80
+}

@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: barriovivo
+      POSTGRES_USER: barrio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-barrio_local}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U barrio -d barriovivo"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: .
+      target: api
+    image: ${DOCKERHUB_USER:-local}/barrio-vivo-api:latest
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://barrio:${POSTGRES_PASSWORD:-barrio_local}@db:5432/barriovivo?schema=public
+      API_PORT: 3000
+    command: ["sh", "-c", "npm --workspace api run db:push && npm --workspace api run db:seed && npm --workspace api run start"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  web:
+    build:
+      context: .
+      target: web
+    image: ${DOCKERHUB_USER:-local}/barrio-vivo-web:latest
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-http://localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

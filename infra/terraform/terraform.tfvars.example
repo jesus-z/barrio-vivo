@@ -1,0 +1,10 @@
+aws_region         = "us-east-1"
+admin_cidr         = "203.0.113.10/32" # Reemplaza por tu IP pública actual
+ssh_public_key     = "ssh-ed25519 AAAA... tu-clave-publica"
+instance_type      = "t3.medium"
+
+# Puntos extra (opcional): cambia a true y completa una zona ya administrada por Cloudflare.
+enable_cloudflare   = false
+cloudflare_api_token = ""
+cloudflare_zone_id   = ""
+domain_name          = "barrio.tudominio.com"

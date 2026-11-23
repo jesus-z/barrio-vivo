@@ -1,0 +1,44 @@
+---
+- ansible.builtin.import_playbook: site.yml
+
+- name: Descargar e iniciar la aplicación con Docker Compose
+  hosts: barrio_vivo
+  become: true
+  vars:
+    app_repository: "{{ lookup('env', 'APP_REPOSITORY') }}"
+    dockerhub_user: "{{ lookup('env', 'DOCKERHUB_USERNAME') }}"
+    postgres_password: "{{ lookup('env', 'POSTGRES_PASSWORD') }}"
+    site_domain: "{{ lookup('env', 'SITE_DOMAIN') | default('localhost', true) }}"
+  tasks:
+    - name: Exigir URL del repositorio y credenciales de base de datos
+      ansible.builtin.assert:
+        that:
+          - app_repository | length > 0
+          - postgres_password | length >= 16
+        fail_msg: Define APP_REPOSITORY y POSTGRES_PASSWORD en el entorno local.
+      no_log: true
+
+    - name: Clonar la versión de producción
+      ansible.builtin.git:
+        repo: "{{ app_repository }}"
+        dest: /opt/barrio-vivo
+        version: main
+        update: true
+
+    - name: Configurar el entorno de producción
+      ansible.builtin.copy:
+        dest: /opt/barrio-vivo/.env
+        owner: ubuntu
+        group: ubuntu
+        mode: "0600"
+        content: |
+          POSTGRES_PASSWORD={{ postgres_password }}
+          DOCKERHUB_USER={{ dockerhub_user }}
+          SITE_DOMAIN={{ site_domain }}
+      no_log: true
+
+    - name: Iniciar los contenedores publicados en Docker Hub
+      community.docker.docker_compose_v2:
+        project_src: /opt/barrio-vivo
+        pull: always
+        state: present

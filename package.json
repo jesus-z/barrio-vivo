@@ -1,0 +1,25 @@
+{
+  "name": "barrio-vivo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["api", "web"],
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm --workspace api run dev",
+    "dev:web": "npm --workspace web run dev",
+    "build": "npm --workspace web run build",
+    "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
+    "test:unit": "npm --workspace api run test:unit",
+    "test:integration": "npm --workspace api run test:integration",
+    "test:e2e": "npm --workspace web run test:e2e",
+    "db:generate": "npm --workspace api run prisma:generate",
+    "db:push": "npm --workspace api run db:push",
+    "db:seed": "npm --workspace api run db:seed",
+    "start": "npm --workspace api run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "wait-on": "^8.0.4"
+  }
+}

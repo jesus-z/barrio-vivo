@@ -1,0 +1,27 @@
+{
+  "name": "@barrio-vivo/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "prisma:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "node prisma/seed.js",
+    "test:unit": "vitest run --config vitest.config.js src/domain",
+    "test:integration": "vitest run --config vitest.config.js src/integration"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.0",
+    "supertest": "^7.1.4",
+    "vitest": "^3.2.4"
+  }
+}
