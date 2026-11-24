@@ -1,4 +1,3 @@
-oci_config_profile = "DEFAULT"
 region             = "us-ashburn-1" # Reemplaza por la región de tu tenancy OCI
 compartment_ocid   = "ocid1.compartment.oc1..REEMPLAZAR"
 project_name       = "barrio-vivo"

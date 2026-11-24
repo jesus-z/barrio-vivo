@@ -138,9 +138,12 @@ resource "oci_core_instance" "web" {
   display_name        = "${var.project_name}-ubuntu-2404"
   shape               = var.instance_shape
 
-  shape_config {
-    ocpus         = var.instance_ocpus
-    memory_in_gbs = var.instance_memory_gbs
+  dynamic "shape_config" {
+    for_each = var.instance_shape == "VM.Standard.A1.Flex" ? [1] : []
+    content {
+      ocpus         = var.instance_ocpus
+      memory_in_gbs = var.instance_memory_gbs
+    }
   }
 
   create_vnic_details {

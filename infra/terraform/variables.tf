@@ -1,12 +1,31 @@
-variable "oci_config_profile" {
-  description = "Nombre del perfil en ~/.oci/config"
-  type        = string
-  default     = "DEFAULT"
-}
-
 variable "region" {
   description = "Región OCI (debe coincidir con la región de tu tenancy)"
   type        = string
+}
+
+variable "tenancy_ocid" {
+  description = "OCID de tenancy, opcional si usas ~/.oci/config"
+  type        = string
+  default     = ""
+}
+
+variable "user_ocid" {
+  description = "OCID del usuario API, opcional si usas ~/.oci/config"
+  type        = string
+  default     = ""
+}
+
+variable "fingerprint" {
+  description = "Fingerprint API, opcional si usas ~/.oci/config"
+  type        = string
+  default     = ""
+}
+
+variable "private_key_path" {
+  description = "Ruta local a la clave privada API, opcional si usas ~/.oci/config"
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "compartment_ocid" {

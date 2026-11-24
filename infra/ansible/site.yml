@@ -20,6 +20,34 @@
           - tigervnc-standalone-server
         state: present
 
+    - name: Crear archivo swap de 2 GB para instancias Always Free pequeñas
+      ansible.builtin.command: fallocate -l 2G /swapfile
+      args:
+        creates: /swapfile
+      register: swap_file
+
+    - name: Ajustar permisos del archivo swap
+      ansible.builtin.file:
+        path: /swapfile
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Formatear el archivo swap
+      ansible.builtin.command: mkswap /swapfile
+      when: swap_file.changed
+
+    - name: Habilitar swap al iniciar
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        line: /swapfile none swap sw 0 0
+        state: present
+
+    - name: Activar swap ahora
+      ansible.builtin.command: swapon /swapfile
+      when: ansible_facts.swaptotal_mb < 1024
+      changed_when: true
+
     - name: Habilitar Docker al iniciar
       ansible.builtin.systemd:
         name: docker
