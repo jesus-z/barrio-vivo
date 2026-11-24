@@ -55,27 +55,3 @@ variable "boot_volume_size_gbs" {
   default     = 50
 }
 
-variable "enable_cloudflare" {
-  description = "Crear un registro DNS A proxied en una zona existente de Cloudflare"
-  type        = bool
-  default     = false
-}
-
-variable "cloudflare_api_token" {
-  description = "Token Cloudflare con Zone/DNS/Edit limitado a la zona del proyecto"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "cloudflare_zone_id" {
-  description = "ID de la zona de Cloudflare que ya administras"
-  type        = string
-  default     = ""
-}
-
-variable "domain_name" {
-  description = "FQDN para el sitio, por ejemplo barrio.example.com"
-  type        = string
-  default     = ""
-}

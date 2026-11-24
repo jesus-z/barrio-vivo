@@ -8,9 +8,9 @@ output "private_ip" {
   value       = oci_core_instance.web.private_ip
 }
 
-output "website_url" {
-  description = "URL para acceder al sitio"
-  value       = var.enable_cloudflare ? "https://${var.domain_name}" : "http://${oci_core_instance.web.public_ip}"
+output "origin_url" {
+  description = "IP pública de origen de la aplicación (el enlace público se muestra en los logs de cloudflared)"
+  value       = "http://${oci_core_instance.web.public_ip}"
 }
 
 output "vcn_id" {

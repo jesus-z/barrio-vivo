@@ -162,20 +162,3 @@ resource "oci_core_instance" "web" {
   freeform_tags = { Project = var.project_name, OS = "Ubuntu 24.04" }
 }
 
-resource "cloudflare_record" "site" {
-  count   = var.enable_cloudflare ? 1 : 0
-  zone_id = var.cloudflare_zone_id
-  name    = var.domain_name
-  type    = "A"
-  value   = oci_core_instance.web.public_ip
-  ttl     = 1
-  proxied = true
-  comment = "Barrio Vivo MVP"
-
-  lifecycle {
-    precondition {
-      condition     = var.cloudflare_zone_id != "" && var.domain_name != "" && var.cloudflare_api_token != ""
-      error_message = "Cloudflare activado: define token, zone_id y domain_name."
-    }
-  }
-}

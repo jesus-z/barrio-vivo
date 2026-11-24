@@ -11,8 +11,3 @@ instance_ocpus        = 2
 instance_memory_gbs   = 12
 boot_volume_size_gbs  = 50
 
-# Puntos extra opcionales: usa una zona que ya administres en Cloudflare.
-enable_cloudflare    = false
-cloudflare_api_token = ""
-cloudflare_zone_id   = ""
-domain_name          = ""

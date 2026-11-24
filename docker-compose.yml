@@ -60,6 +60,14 @@ services:
     depends_on:
       - web
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--url", "http://caddy:80"]
+    depends_on:
+      - caddy
+
 volumes:
   postgres_data:
   caddy_data:

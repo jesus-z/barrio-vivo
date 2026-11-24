@@ -8,7 +8,7 @@
     app_repository: "{{ lookup('env', 'APP_REPOSITORY') }}"
     dockerhub_user: "{{ lookup('env', 'DOCKERHUB_USERNAME') }}"
     postgres_password: "{{ lookup('env', 'POSTGRES_PASSWORD') }}"
-    site_domain: "{{ lookup('env', 'SITE_DOMAIN') | default('localhost', true) }}"
+    site_domain: "{{ lookup('env', 'SITE_DOMAIN') | default('http://localhost', true) }}"
   tasks:
     - name: Exigir URL del repositorio y credenciales de base de datos
       ansible.builtin.assert:
@@ -35,6 +35,7 @@
           POSTGRES_PASSWORD={{ postgres_password }}
           DOCKERHUB_USER={{ dockerhub_user }}
           SITE_DOMAIN={{ site_domain }}
+          COMPOSE_PROFILES=tunnel
       no_log: true
 
     - name: Iniciar los contenedores publicados en Docker Hub

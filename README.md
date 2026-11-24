@@ -13,7 +13,7 @@ MVP de una comunidad vecinal sostenible: cualquier persona puede compartir una a
 | Dockerfile y Docker Compose | Imágenes multi-stage en `Dockerfile`; stack PostgreSQL, API, web y Caddy en `docker-compose.yml` |
 | Terraform Ubuntu 24.04, VNC, subredes e IP pública | VCN OCI con subred pública y privada, Compute Ubuntu 24.04 Ampere A1 ARM, IP pública y puertos 80/443/22/5901 |
 | Script/Ansible para Docker, Git, firewall e iptables | `infra/ansible/site.yml` instala y configura los servicios; firewall persistente limita SSH/VNC a tu CIDR |
-| Extra de Ansible y Cloudflare | Despliegue con Ansible y registro DNS A proxied opcional con Terraform/Cloudflare hacia la IP pública OCI |
+| Extra de Ansible y Cloudflare | Despliegue con Ansible y Cloudflare Quick Tunnel que genera un enlace temporal `trycloudflare.com` sin dominio ni token |
 
 ## Ejecutar localmente
 
@@ -24,7 +24,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Abre [http://localhost](http://localhost). Compose crea PostgreSQL, aplica el esquema Prisma, carga tres actividades de ejemplo y levanta el sitio. Para cerrar: `docker compose down`; para borrar también los datos locales: `docker compose down -v`.
+Abre [http://localhost](http://localhost). Compose crea PostgreSQL, aplica el esquema Prisma, carga tres actividades de ejemplo y levanta el sitio. El túnel público no se activa en desarrollo local. Para cerrar: `docker compose down`; para borrar también los datos locales: `docker compose down -v`.
 
 Para desarrollo con recarga en caliente, inicia PostgreSQL con `docker compose up -d db`, luego ejecuta:
 
@@ -77,7 +77,8 @@ terraform fmt -check
 terraform validate
 terraform plan
 terraform apply
-terraform output website_url
+terraform output public_ip
+terraform output origin_url
 ```
 
 Guarda `public_ip` para Ansible. Antes de aplicar, confirma que shape y volumen siguen marcados Always Free en tu tenancy. Usa `terraform destroy` cuando termines la práctica para retirar la VM, VCN y recursos asociados.
@@ -98,11 +99,16 @@ ansible-playbook site.yml
 
 Esto instala Docker, Docker Compose, Git, XFCE, TigerVNC e iptables. El firewall persistente permite únicamente SSH/VNC desde `admin_cidr`, y puertos 80/443 desde Internet. Conéctate a `IP_PUBLICA:5901` desde tu CIDR. No expongas VNC a toda Internet.
 
-### DNS y HTTPS con Cloudflare (puntos extra)
+### Enlace temporal de Cloudflare (puntos extra)
 
-Usa una zona de Cloudflare que ya administres y crea un API token con permiso `Zone / DNS / Edit` solamente para esa zona. En `terraform.tfvars` activa `enable_cloudflare`, define `cloudflare_api_token`, `cloudflare_zone_id` y el FQDN (`domain_name`). Terraform crea el registro A proxied apuntando a la IP pública OCI. Protege el token, evita subir los tfvars y recuerda que Terraform puede conservar valores sensibles en el state.
+El despliegue de producción activa un Cloudflare Quick Tunnel dentro de Docker Compose. No requiere cuenta Cloudflare, dominio, DNS ni API token. Al iniciarlo, Cloudflare crea un enlace HTTPS aleatorio bajo `trycloudflare.com` que redirige al Caddy local:
 
-El Caddy del compose obtiene y renueva certificado HTTPS automáticamente cuando el FQDN resuelve a la VM y llegan conexiones por 80/443. Configura Cloudflare SSL/TLS en **Full (strict)** y define `SITE_DOMAIN=app.tudominio.com` en `.env` antes de desplegar. En el escenario sin dominio usa `SITE_DOMAIN=http://IP_PUBLICA` para servir HTTP sin intentar emitir un certificado.
+```bash
+cd /opt/barrio-vivo
+docker compose logs -f cloudflared
+```
+
+Copia la URL `https://...trycloudflare.com` que aparece en los logs. El enlace es temporal: deja de funcionar si se detiene el contenedor y puede cambiar cuando se reinicia. Cualquier persona que conozca el enlace podrá abrir la aplicación; compártelo solo para la demostración. El túnel usa una conexión saliente, mientras que la VM conserva las reglas requeridas para los puertos 80/443.
 
 ## Despliegue a la VM
 
@@ -113,11 +119,10 @@ cd infra/ansible
 export APP_REPOSITORY='https://github.com/USUARIO/REPOSITORIO.git'
 export DOCKERHUB_USERNAME='TU_USUARIO_DOCKERHUB'
 export POSTGRES_PASSWORD='una-clave-larga-y-aleatoria'
-export SITE_DOMAIN='app.tudominio.com' # o http://IP_PUBLICA si no usarás Cloudflare
 ansible-playbook deploy.yml
 ```
 
-Para un repo privado configura una clave de despliegue Git en la VM antes de correr el playbook. Para Docker Hub privado, inicia sesión con `docker login` en la VM y crea un token de lectura. Caddy sirve HTTPS para el dominio cuando DNS y Cloudflare están listos.
+Para un repo privado configura una clave de despliegue Git en la VM antes de correr el playbook. Para Docker Hub privado, inicia sesión con `docker login` en la VM y crea un token de lectura. Al terminar, obtén el enlace temporal con `docker compose logs -f cloudflared`.
 
 ## Estructura
 
@@ -126,6 +131,6 @@ api/                 API Express, reglas de negocio, Prisma y 12 pruebas
 web/                 interfaz React, Vite y 6 pruebas E2E
 .github/workflows/   pipeline dev/main y publicación Docker Hub
 infra/docker/        reverse proxy frontend → API
-infra/terraform/     OCI VCN/subnets, Ubuntu 24.04 ARM, VNC/security lists y DNS Cloudflare
+infra/terraform/     OCI VCN/subnets, Ubuntu 24.04 ARM, VNC y security lists
 infra/ansible/       hardening, herramientas, escritorio VNC y despliegue
 ```
