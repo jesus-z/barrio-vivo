@@ -80,3 +80,10 @@ variable "boot_volume_size_gbs" {
   default     = 50
 }
 
+variable "existing_boot_volume_ocid" {
+  description = "OCID de un boot volume separado para restaurar una instancia existente"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+

@@ -10,4 +10,5 @@ instance_fault_domain = "" # Opcional: FAULT-DOMAIN-1, FAULT-DOMAIN-2 o FAULT-DO
 instance_ocpus        = 2
 instance_memory_gbs   = 12
 boot_volume_size_gbs  = 50
+existing_boot_volume_ocid = "" # Deja vacío para Ubuntu 24.04 nuevo; usa un OCID solo para restaurar un disco separado
 

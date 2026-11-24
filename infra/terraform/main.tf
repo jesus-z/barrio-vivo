@@ -136,7 +136,7 @@ resource "oci_core_instance" "web" {
   availability_domain = data.oci_identity_availability_domains.available.availability_domains[0].name
   fault_domain        = var.instance_fault_domain == "" ? null : var.instance_fault_domain
   compartment_id      = var.compartment_ocid
-  display_name        = "${var.project_name}-ubuntu-2404"
+  display_name        = var.existing_boot_volume_ocid == "" ? "${var.project_name}-ubuntu-2404" : "${var.project_name}-restored"
   shape               = var.instance_shape
 
   dynamic "shape_config" {
@@ -153,16 +153,30 @@ resource "oci_core_instance" "web" {
     hostname_label   = "barriovivo"
   }
 
-  source_details {
-    source_type             = "image"
-    source_id               = data.oci_core_images.ubuntu_2404.images[0].id
-    boot_volume_size_in_gbs = var.boot_volume_size_gbs
+  dynamic "source_details" {
+    for_each = var.existing_boot_volume_ocid == "" ? [1] : []
+    content {
+      source_type             = "image"
+      source_id               = data.oci_core_images.ubuntu_2404.images[0].id
+      boot_volume_size_in_gbs = var.boot_volume_size_gbs
+    }
+  }
+
+  dynamic "source_details" {
+    for_each = var.existing_boot_volume_ocid == "" ? [] : [1]
+    content {
+      source_type = "bootVolume"
+      source_id   = var.existing_boot_volume_ocid
+    }
   }
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
   }
 
-  freeform_tags = { Project = var.project_name, OS = "Ubuntu 24.04" }
+  freeform_tags = {
+    Project = var.project_name
+    OS      = var.existing_boot_volume_ocid == "" ? "Ubuntu 24.04" : "Restored boot volume"
+  }
 }
 
