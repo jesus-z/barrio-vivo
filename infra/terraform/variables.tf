@@ -56,6 +56,12 @@ variable "instance_shape" {
   default     = "VM.Standard.A1.Flex"
 }
 
+variable "instance_fault_domain" {
+  description = "Fault domain opcional para intentar una zona física distinta"
+  type        = string
+  default     = ""
+}
+
 variable "instance_ocpus" {
   description = "OCPUs para Ampere A1; 2 OCPU y 12 GB caben en el límite Always Free"
   type        = number

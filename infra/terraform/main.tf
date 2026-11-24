@@ -134,6 +134,7 @@ resource "oci_core_subnet" "private" {
 
 resource "oci_core_instance" "web" {
   availability_domain = data.oci_identity_availability_domains.available.availability_domains[0].name
+  fault_domain        = var.instance_fault_domain == "" ? null : var.instance_fault_domain
   compartment_id      = var.compartment_ocid
   display_name        = "${var.project_name}-ubuntu-2404"
   shape               = var.instance_shape

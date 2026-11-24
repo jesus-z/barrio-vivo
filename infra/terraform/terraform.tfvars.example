@@ -6,6 +6,7 @@ ssh_public_key     = "ssh-ed25519 AAAA... tu-clave-publica"
 
 # Ampere A1 ARM: valores predeterminados dentro del límite Always Free publicado por Oracle.
 instance_shape        = "VM.Standard.A1.Flex"
+instance_fault_domain = "" # Opcional: FAULT-DOMAIN-1, FAULT-DOMAIN-2 o FAULT-DOMAIN-3
 instance_ocpus        = 2
 instance_memory_gbs   = 12
 boot_volume_size_gbs  = 50
