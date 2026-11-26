@@ -74,7 +74,7 @@
         owner: ubuntu
         group: ubuntu
         mode: "0755"
-        content: "#!/bin/sh\nstartxfce4 &\n"
+        content: "#!/bin/sh\nexec dbus-launch --exit-with-session startxfce4\n"
 
     - name: Validar que se definió la contraseña VNC
       ansible.builtin.assert:
